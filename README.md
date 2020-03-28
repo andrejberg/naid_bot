@@ -1,16 +1,11 @@
 # NAid Bot
 Neighbor Aid (NAid) Telegram Bot ist ein Projekt in der Entwicklungsphase. Dieser Bot soll lokale Initiativen (Nachbarschaftshilfen) bei der Koordinierung von Aufgaben unterschtuetzen.
 
-## Updates
-- **23.03.2020**:
-Kick off, fruehe Entwicklungsphase
-- **25.03.2020:**:
-Erste funktionale Demoversion verfuegbar.
-- **28.03.2020:**:
-Umstellung auf `python_telegram_bot`
-
 ## Idee
 Für eine lokale Initiative wird eine Gruppe auf Telegram erstellt und der Bor der Gruppe hinzugefuegt. Über die Gruppe kann man den Bot mit Aufgaben füttern. Der Bot postet eine Vorschau in die Gruppe und wartet darauf, dass jemand die Aufgabe annimmt. Sobald das passiert, informiert er die beide Parteien und wartet auf die beiderseitige Bestätigung. Erst dann werden persönliche Daten in einem privaten Chat herausgegeben. Zusätzlich gibt der Bot den Freiwilligen Tips zum Ablauf und zur Hygiene über den Chat.
+
+## Demo
+Link zur Telegram Gruppe gibt es auf Anfrage.
 
 
 ## Developer
@@ -32,12 +27,19 @@ cp bot_credentials.py bot_credentials_private.py
 In `bot_credentials_private.py` eintragen:
 - Telegram API Token
 - Chat ID Gruppe
-- Chat ID Channel
 
 ### Run
 ```bash
 python naid_bot.py
 ```
+
+## Updates
+- **23.03.2020**:
+Kick off, fruehe Entwicklungsphase
+- **25.03.2020:**:
+Erste funktionale Demoversion verfuegbar.
+- **28.03.2020:**:
+Umstellung auf `python_telegram_bot`
 
 
 ## Credits
