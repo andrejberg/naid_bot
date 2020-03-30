@@ -41,7 +41,7 @@ def markup_inline_keyboard_assign_task(task_id):
 def markup_inline_keyboard_confirm_task():
     buttons = [[
         InlineKeyboardButton(text="Ja, ich bin mir sicher.", callback_data="confirmtask_1"),
-        # InlineKeyboardButton(text="Nein, doch nicht.", callback_data="confirmtask_0")
+        InlineKeyboardButton(text="Nein, doch nicht.", callback_data="confirmtask_0")
     ]]
     return InlineKeyboardMarkup(buttons, one_time_keyboard=True)
 
@@ -49,7 +49,7 @@ def markup_inline_keyboard_confirm_task():
 def markup_inline_keyboard_confirm_task_done():
     buttons = [[
         InlineKeyboardButton(text="Erledigt", callback_data="taskdone_1"),
-        # InlineKeyboardButton(text="Nochmal in der Gruppe anbieten.", callback_data="taskdone_0")
+        InlineKeyboardButton(text="Nochmal in der Gruppe anbieten.", callback_data="taskdone_0")
     ]]
     return InlineKeyboardMarkup(buttons, one_time_keyboard=True)
 # -----------------------------------------------------------------------------

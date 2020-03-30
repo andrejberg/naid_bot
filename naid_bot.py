@@ -9,6 +9,7 @@ from text_templates import *
 from bot_credentials_private import API_TOKEN, GROUP_CHAT_ID
 from database_model import *
 from markup import *
+from helper import get_google_location
 
 # ========================= DEV AREA == REMOVE ================================
 # for develepment only
@@ -32,9 +33,9 @@ demo_descriprion = [
     "Das ist nur ein Test. Nichts wichtiges."
 ]
 demo_location = [
-    '<a href="https://www.google.de/maps/place/Unter+den+Linden+10+Berlin">Unter den Linden 10, Berlin</a>',
-    '<a href="https://www.google.de/maps/place/Schultereck">Schultereck, Hamburg</a>',
-    '<a href="https://www.google.de/maps/place/Marinenplatz+1+Muenchen">Marinenplatz 1, Muenchen</a>'
+    'Unter den Linden 10, Berlin',
+    'Schultereck, Hamburg',
+    'Marinenplatz 1, Muenchen'
 ]
 def command_test(update, context):
 
@@ -60,7 +61,7 @@ def command_test(update, context):
         task = Task(
             title = demo_title[np.random.randint(3)],
             description = demo_descriprion[np.random.randint(3)],
-            location = demo_location[np.random.randint(3)],
+            location = get_google_location(demo_location[np.random.randint(3)]),
             client = client
         )
         session.add(task)
@@ -93,8 +94,11 @@ def error(update, context):
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
     if context.error == "Forbidden: bot can't initiate conversation with a user":
+        # bot cant init conversation, user has to start conversation
         update.message.reply_text(
-            template_cant_init_conversation.format(first_name = update.message.from_user.first_name),
+            template_cant_init_conversation.format(
+                first_name = update.message.from_user.first_name
+            ),
             parse_mode = ParseMode.HTML
         )
 # -----------------------------------------------------------------------------
@@ -109,6 +113,7 @@ def command_help_start(update, context):
         text = template_help_message,
         parse_mode = ParseMode.HTML
     )
+    # pprint(update.to_dict())
 
 
 def command_uebergabe(update, context):
@@ -208,11 +213,7 @@ def record_location(update, context):
 
 def show_overview(update, context):
 
-    location = update.message.text
-    context.user_data["location"]  = '<a href="https://www.google.de/maps/place/{}">{}</a>'.format(
-        "+".join(location.replace("\n", "").split()),
-        location
-    )
+    context.user_data["location"] = get_google_location(update.message.text)
 
     update.message.reply_text(
         template_task_client_overview.format(**context.user_data),
@@ -253,6 +254,7 @@ def post_task(update, context):
     context.user_data.clear()
     return ConversationHandler.END
 
+
 def discard_task(update, context):
 
     # reply to user
@@ -263,6 +265,7 @@ def discard_task(update, context):
 
     context.user_data.clear()
     return ConversationHandler.END
+
 
 def cancel_recording(update, context):
 
@@ -292,6 +295,7 @@ def assign_task(update, context):
         volunteer = session.query(User).filter(User.id == user_id).one_or_none()
         if volunteer is None:
 
+            # add user since callback has to be from group?
             volunteer = User(
                 id = user_id,
                 first_name = update.callback_query.from_user.first_name,
@@ -304,7 +308,7 @@ def assign_task(update, context):
         task.status = "assigned"
         session.commit()
 
-        # update post
+        # update post message
         update.callback_query.edit_message_text(
             template_task_group_processing.format(
                 title = task.title,
@@ -333,9 +337,11 @@ def assign_task(update, context):
 def confirm_task(update, context):
 
     message_id = update.callback_query.message.message_id
+    response = bool(int(update.callback_query.data.split("_")[1]))
 
     with session_handler() as session:
 
+        # identify task by message id stored in database
         task = session.query(Task).filter(Task.message_id_volunteer == message_id).one_or_none()
         if task is None:
             logger.error("in confirm_task: Task not found in database.")
@@ -357,6 +363,7 @@ def confirm_task(update, context):
         session.commit()
 
 
+
 def confirm_task_done(update, context):
 
     message_id = update.callback_query.message.message_id
@@ -375,7 +382,10 @@ def confirm_task_done(update, context):
             ),
             parse_mode = ParseMode.HTML
         )
+        # delete information from databse
         task.status = "done"
+        task.description = None
+        task.location = None
         session.commit()
 
         # edit post message in group chat
@@ -393,19 +403,44 @@ def confirm_task_done(update, context):
 
 
 def reset_task(update, context):
+    """Set task back to posted."""
+    message_id = update.callback_query.message.message_id
 
-    task_id = context.user_data["task_id"]
-    message_id = context.user_data["message_id"]
+    with session_handler() as session:
 
-    print(task_id, message_id)
-    return ConversationHandler.END
+        task = session.query(Task).filter(Task.message_id_volunteer == message_id).one_or_none()
+        if task is None:
+            logger.error("Task not found in database. callback_query_confirm_overview()")
+            return
+
+        # update volunteer message
+        update.callback_query.edit_message_text(
+            text = "<em>Ok. Also doch nicht. Bitte mache das nicht zu oft.</em>",
+            parse_mode = ParseMode.HTML
+        )
+        task.status = "posted"
+        task.volunteer = None
+        session.commit()
+
+        # update post message
+        context.bot.edit_message_text(
+            chat_id = GROUP_CHAT_ID,
+            message_id = task.message_id_post,
+            text = template_task_group_open.format(
+                title = task.title,
+                client_user_id = task.client.id,
+                client_first_name = task.client.first_name
+            ),
+            reply_markup = markup_inline_keyboard_assign_task(task.id),
+            parse_mode = ParseMode.HTML
+        )
 # =============================================================================
 
 
 # -----------------------------------------------------------------------------
 # functions to keep track of group members
 def group_chat(update, context):
-
+    pprint(update)
     # check if user already in database
     user = update.message.from_user
     with session_handler() as session:
@@ -470,7 +505,7 @@ def main():
 
     # Conversation to record and post task
     conv_handler = ConversationHandler(
-        entry_points = [CommandHandler('aufgabe', command_aufgabe)],
+        entry_points = [CommandHandler("auftrag", command_aufgabe)],
         states = {
             RECORD_TITLE:[
                 MessageHandler(Filters.text, record_description)
@@ -492,8 +527,10 @@ def main():
 
     # assign tasks
     dp.add_handler(CallbackQueryHandler(assign_task, pattern='^assigntask'))
-    dp.add_handler(CallbackQueryHandler(confirm_task, pattern='^confirmtask'))
-    dp.add_handler(CallbackQueryHandler(confirm_task_done, pattern='^taskdone'))
+    dp.add_handler(CallbackQueryHandler(confirm_task, pattern='^confirmtask_1$'))
+    dp.add_handler(CallbackQueryHandler(confirm_task_done, pattern='^taskdone_1$'))
+    dp.add_handler(CallbackQueryHandler(reset_task, pattern='^confirmtask_0$'))
+    dp.add_handler(CallbackQueryHandler(reset_task, pattern='^taskdone_0$'))
 
     # keep track of users in group chat
     dp.add_handler(MessageHandler(Filters.group, group_chat))
